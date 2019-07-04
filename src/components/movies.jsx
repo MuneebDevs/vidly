@@ -1,14 +1,21 @@
 import React, { Component } from "react";
 import { getMovies } from "../services/fakeMovieService";
-import Like from "./common/like";
+import { getGenres } from "../services/fakeGenreService";
+import ListGroup from "./listGroup";
+import MoviesTable from "./moviesTable";
 import Pagination from "./common/pagination";
-import Paginate, { paginate } from "../utils/paginate";
+import { paginate } from "../utils/paginate";
 
 class Movies extends Component {
   state = {
-    movies: getMovies(),
+    movies: [],
+    genres: [],
     pageSize: 4,
     currentPage: 1
+  };
+  componentDidMount = () => {
+    const genres = [{ _id: 0, name: "All Genres" }, ...getGenres()];
+    this.setState({ movies: getMovies(), genres });
   };
 
   toggleLike = movie => {
@@ -22,57 +29,51 @@ class Movies extends Component {
   handlePageChange = page => {
     this.setState({ currentPage: page });
   };
+  handleGenreSelect = genre => {
+    this.setState({ selectedGenre: genre, currentPage: 1 });
+  };
 
   render() {
-    const { length: moviesCount } = this.state.movies;
-    const { pageSize, currentPage } = this.state;
-    if (moviesCount === 0) return <h3>There are no movies in db</h3>;
-    const movies = paginate(this.state.movies, currentPage, pageSize);
+    const {
+      pageSize,
+      currentPage,
+      selectedGenre,
+      movies: allMovies
+    } = this.state;
+    const filtered =
+      selectedGenre && selectedGenre._id
+        ? allMovies.filter(m => m.genre._id === selectedGenre._id)
+        : allMovies;
+    const movies = paginate(filtered, currentPage, pageSize);
     return (
       <React.Fragment>
-        <h3>{movies.length} movies </h3>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Genre</th>
-              <th>Stock</th>
-              <th>rate</th>
-              <th />
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {movies.map(movie => (
-              <tr key={movie._id}>
-                <td>{movie.title}</td>
-                <td>{movie.genre.name}</td>
-                <td>{movie.numberInStock}</td>
-                <td>{movie.dailyRentalRate}</td>
-                <td>
-                  <Like
-                    liked={movie.like}
-                    onClick={() => this.toggleLike(movie)}
-                  />
-                </td>
-                <td>
-                  <button
-                    onClick={() => this.eraseMovie(movie)}
-                    className="btn btn-danger btn-sm"
-                  >
-                    DELETE
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <Pagination
-          itemsCount={moviesCount}
-          pageSize={pageSize}
-          currentPage={currentPage}
-          onPageChange={this.handlePageChange}
-        />
+        <div className="row">
+          <div className="col-2">
+            <ListGroup
+              items={this.state.genres}
+              selectedItem={this.state.selectedGenre}
+              onItemSelect={this.handleGenreSelect}
+            />
+          </div>
+          <div className="col">
+            <h3>
+              {filtered.length === 0
+                ? "There are no movies"
+                : filtered.length + "movies"}
+            </h3>
+            <MoviesTable
+              movies={movies}
+              onLike={this.toggleLike}
+              onDelete={this.eraseMovie}
+            />
+            <Pagination
+              itemsCount={filtered.length}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              onPageChange={this.handlePageChange}
+            />
+          </div>
+        </div>
       </React.Fragment>
     );
   }
